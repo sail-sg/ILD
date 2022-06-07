@@ -1,6 +1,6 @@
 ## Imitation Learning via Differentiable Physics
 
-It recovers expert behavior with a single demonstration via differential dynamics.
+Existing imitation learning (IL) methods such as inverse reinforcement learning (IRL) usually have a double-loop training process, alternating between learning a reward function and a policy and tend to suffer long training time and high variance. In this work, we identify the benefits of differentiable physics simulators and propose a new IL method, i.e., Imitation Learning via Differentiable Physics (ILD), which gets rid of the double-loop design and achieves significant improvements in final performance, convergence speed, and stability.
 
 #### Installation
 ~~~
