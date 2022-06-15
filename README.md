@@ -2,7 +2,36 @@
 
 Existing imitation learning (IL) methods such as inverse reinforcement learning (IRL) usually have a double-loop training process, alternating between learning a reward function and a policy and tend to suffer long training time and high variance. In this work, we identify the benefits of differentiable physics simulators and propose a new IL method, i.e., Imitation Learning via Differentiable Physics (ILD), which gets rid of the double-loop design and achieves significant improvements in final performance, convergence speed, and stability.
 
+
+
+#### Brax MuJoCo Tasks
+
+Our ILD agent learns using a single expert demonstration with much less variance and higher performance.
+
+![results](images/results.png)
+
+
+
+
+
+#### Visualization (Ant)
+
+
+
+Expert Demo | Learned Policy 
+:-: | :-:
+![](images/ant_demo.gif) | ![](images/ant_agent.gif) 
+
+
+
+
+
+
+
+
+
 #### Installation
+
 ~~~
 conda create -n ILD python==3.8
 conda activate ILD
