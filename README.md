@@ -12,15 +12,21 @@ Our ILD agent learns using a single expert demonstration with much less variance
 
 
 
-
-
-#### Visualization (Ant)
-
-
-
 Expert Demo | Learned Policy 
 :-: | :-:
 ![](images/ant_demo.gif) | ![](images/ant_agent.gif) 
+
+
+
+
+
+#### Cloth Manipulation Task
+
+We collect a single expert demonstration in a noise-free environment. Despite the presence of severe control noise in the test environment, our method completes the task and recovers the expert behavior.
+
+Expert Demo (Noise-free) | Learned Policy (Heavy Noise in Control) 
+:-: | :-:
+![](images/cloth_expert.gif) | ![](images/cloth.gif) 
 
 
 
