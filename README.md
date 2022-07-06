@@ -43,7 +43,7 @@ conda create -n ILD python==3.8
 conda activate ILD
 
 pip install --upgrade pip
-pip install --upgrade "jax[cuda]" -f https://storage.googleapis.com/jax-releases/jax_releases.html
+pip install --upgrade "jax[cuda]" -f https://storage.googleapis.com/jax-releases/jax_cuda_releases.html
 pip install brax
 pip install streamlit
 pip install tensorflow
