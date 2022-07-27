@@ -16,3 +16,5 @@ core/.DS_Store
 .markdownlint.yaml
 
 .flake8
+
+policy/brax_task/logs_bp/

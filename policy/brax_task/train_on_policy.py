@@ -13,7 +13,9 @@
 # limitations under the License.
 
 import argparse
+import pickle
 import time
+from functools import partial
 from typing import Any, Callable, Dict, Optional
 
 import brax
@@ -34,8 +36,10 @@ from brax.training import pmap
 from brax.training.types import PRNGKey
 from brax.training.types import Params
 from flax import linen
+from jax import custom_vjp
 
 logging.set_verbosity(logging.INFO)
+tf.config.experimental.set_visible_devices([], "GPU")
 
 
 @flax.struct.dataclass
@@ -261,6 +265,26 @@ def train(
     Training functions
     """
 
+    @partial(custom_vjp)
+    def norm_grad(x):
+        return x
+
+    def norm_grad_fwd(x):
+        return x, ()
+
+    def norm_grad_bwd(x, g):
+        # g /= jnp.linalg.norm(g)
+        # g = jnp.nan_to_num(g)
+        g_norm = optax.global_norm(g)
+        trigger = g_norm < 1.0
+        g = jax.tree_multimap(
+            lambda t: jnp.where(trigger,
+                                jnp.nan_to_num(t),
+                                (jnp.nan_to_num(t) / g_norm) * 1.0), g)
+        return g,
+
+    norm_grad.defvjp(norm_grad_fwd, norm_grad_bwd)
+
     def do_one_step(carry, step_index):
         state, params, normalizer_params, key = carry
         key, key_sample = jax.random.split(key)
@@ -268,6 +292,9 @@ def train(
         logits = policy_model.apply(params, normalized_obs)
         actions = parametric_action_distribution.sample(logits, key_sample)
         nstate = step_fn(state, actions)
+
+        actions = norm_grad(actions)
+        nstate = norm_grad(nstate)
 
         if truncation_length is not None and truncation_length > 0:
             nstate = jax.lax.cond(
@@ -461,6 +488,10 @@ def train(
     inference = make_inference_fn(core_env.observation_size, core_env.action_size,
                                   normalize_observations)
 
+    # save params in pickle file
+    with open(args.logdir + '/params.pkl', 'wb') as f:
+        pickle.dump(params, f)
+
     pmap.synchronize_hosts()
 
 
@@ -514,7 +545,7 @@ if __name__ == '__main__':
     parser.add_argument('--num_envs', default=360, type=int)
     parser.add_argument('--lr', default=1e-3, type=float)
     parser.add_argument('--trunc_len', default=10, type=int)
-    parser.add_argument('--max_it', default=5000, type=int)
+    parser.add_argument('--max_it', default=8000, type=int)
     parser.add_argument('--max_grad_norm', default=0.3, type=float)
     parser.add_argument('--reverse_discount', default=1.0, type=float)
     parser.add_argument('--entropy_factor', default=0, type=float)
