@@ -55,9 +55,10 @@ def rollout(env_name, num_steps, num_envs):
     top_k_idx = np.argsort(traj_rewards)[-num_envs:]
     print(env_name, "top k rewards: ", traj_rewards[top_k_idx])
 
-    np.save(f"{my_path}/../brax_task/expert_multi_traj/%s_traj_state.npy" % env_name, traj_states[top_k_idx])
-    np.save(f"{my_path}/../brax_task/expert_multi_traj/%s_traj_action.npy" % env_name, traj_actions[top_k_idx])
-    np.save(f"{my_path}/../brax_task/expert_multi_traj/%s_traj_observation.npy" % env_name, traj_obs[top_k_idx])
+    np.save(f"{my_path}/../brax_task/expert_multi_traj/%s_traj_state.npy" % env_name, traj_states[:, top_k_idx])
+    np.save(f"{my_path}/../brax_task/expert_multi_traj/%s_traj_action.npy" % env_name, traj_actions[:, top_k_idx])
+    np.save(f"{my_path}/../brax_task/expert_multi_traj/%s_traj_observation.npy" % env_name, traj_obs[:, top_k_idx])
+    np.save(f"{my_path}/../brax_task/expert_multi_traj/%s_traj_reward.npy" % env_name, traj_rewards[top_k_idx])
     return traj_states, traj_actions, traj_obs
 
 

@@ -18,3 +18,4 @@ core/.DS_Store
 .flake8
 
 policy/brax_task/logs_bp/
+*.v2
