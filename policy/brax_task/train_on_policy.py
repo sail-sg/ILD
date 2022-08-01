@@ -73,7 +73,7 @@ def train(
     # prepare expert demos
     args.logdir = f"logs/{args.env}/{args.env}_ep_len{args.ep_len}_num_envs{args.num_envs}_lr{args.lr}_trunc_len{args.trunc_len}" \
                   f"_max_it{args.max_it}_max_grad_norm{args.max_grad_norm}_re_dis{args.reverse_discount}_ef_{args.entropy_factor}" \
-                  f"_df_{args.deviation_factor}_acf_{args.action_cf_factor}_l2loss_{args.l2}" \
+                  f"_df_{args.deviation_factor}_acf_{args.action_cf_factor}_l2loss_{args.l2}_il_{args.il}_ILD_{args.ILD}" \
                   f"/seed{args.seed}"
     demo_traj = np.load(f"expert/{args.env}_traj_state.npy")
     demo_traj = jnp.array(demo_traj)[:args.ep_len][:, None, ...].repeat(args.num_envs, 1)
@@ -109,6 +109,7 @@ def train(
 
     # envs
     core_env = environment_fn(
+        auto_reset=False,
         action_repeat=action_repeat,
         batch_size=num_envs // local_devices_to_use // process_count,
         episode_length=episode_length)
@@ -457,29 +458,31 @@ def train(
             training_state, summary, synchro = il_minimize(training_state)
             assert synchro[0], (it, training_state)
             jax.tree_map(lambda x: x.block_until_ready(), summary)
+        eval_policy(0, key_debug)
 
     # main training loop
-    for it in range(log_frequency + 1):
-        logging.info('starting iteration %s %s', it, time.time() - xt)
-        t = time.time()
+    if args.ILD:
+        for it in range(log_frequency + 1):
+            logging.info('starting iteration %s %s', it, time.time() - xt)
+            t = time.time()
 
-        eval_policy(it, key_debug)
-        if it == log_frequency:
-            break
+            eval_policy(it, key_debug)
+            if it == log_frequency:
+                break
 
-        # optimization
-        t = time.time()
-        num_steps = it * args.num_envs * args.ep_len
-        training_state, metrics, synchro = minimize(training_state, first_state)
-        tf.summary.scalar('cf_loss', data=np.array(metrics['cf_loss'])[0], step=num_steps)
-        tf.summary.scalar('entropy_loss', data=np.array(metrics['entropy_loss'])[0], step=num_steps)
-        tf.summary.scalar('cf_action_loss', data=np.array(metrics['cf_action_loss'])[0], step=num_steps)
-        tf.summary.scalar('grad_norm', data=np.array(metrics['grad_norm'])[0], step=num_steps)
-        tf.summary.scalar('params_norm', data=np.array(metrics['params_norm'])[0], step=num_steps)
-        assert synchro[0], (it, training_state)
-        jax.tree_map(lambda x: x.block_until_ready(), metrics)
-        sps = (episode_length * num_envs) / (time.time() - t)
-        training_walltime += time.time() - t
+            # optimization
+            t = time.time()
+            num_steps = it * args.num_envs * args.ep_len
+            training_state, metrics, synchro = minimize(training_state, first_state)
+            tf.summary.scalar('cf_loss', data=np.array(metrics['cf_loss'])[0], step=num_steps)
+            tf.summary.scalar('entropy_loss', data=np.array(metrics['entropy_loss'])[0], step=num_steps)
+            tf.summary.scalar('cf_action_loss', data=np.array(metrics['cf_action_loss'])[0], step=num_steps)
+            tf.summary.scalar('grad_norm', data=np.array(metrics['grad_norm'])[0], step=num_steps)
+            tf.summary.scalar('params_norm', data=np.array(metrics['params_norm'])[0], step=num_steps)
+            assert synchro[0], (it, training_state)
+            jax.tree_map(lambda x: x.block_until_ready(), metrics)
+            sps = (episode_length * num_envs) / (time.time() - t)
+            training_walltime += time.time() - t
 
     params = jax.tree_map(lambda x: x[0], training_state.policy_params)
     normalizer_params = jax.tree_map(lambda x: x[0],
@@ -545,7 +548,7 @@ if __name__ == '__main__':
     parser.add_argument('--num_envs', default=360, type=int)
     parser.add_argument('--lr', default=1e-3, type=float)
     parser.add_argument('--trunc_len', default=10, type=int)
-    parser.add_argument('--max_it', default=8000, type=int)
+    parser.add_argument('--max_it', default=5000, type=int)
     parser.add_argument('--max_grad_norm', default=0.3, type=float)
     parser.add_argument('--reverse_discount', default=1.0, type=float)
     parser.add_argument('--entropy_factor', default=0, type=float)
@@ -554,6 +557,7 @@ if __name__ == '__main__':
     parser.add_argument('--il', default=1, type=float)
     parser.add_argument('--l2', default=0, type=float)
     parser.add_argument('--seed', default=1, type=int)
+    parser.add_argument('--ILD', default=1, type=int)
 
     args = parser.parse_args()
 
