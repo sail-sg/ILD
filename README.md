@@ -52,9 +52,15 @@ pip install open3d
 
 #### Start training
 ~~~
+# train with a single demonstration
 cd policy/brax_task
 CUDA_VISIBLE_DEVICES=0 python train_on_policy.py --env="ant" --seed=1
 
+# train with multiple demonstrations
+cd policy/brax_task
+CUDA_VISIBLE_DEVICES=0 python train_multi_traj.py --env="ant" --seed=1
+
+# train with cloth manipulation task
 cd policy/cloth_task
 CUDA_VISIBLE_DEVICES=0 python train_on_policy.py --seed=1
 ~~~

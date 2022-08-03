@@ -83,7 +83,7 @@ def train(
     demo_traj_obs = jnp.array(demo_traj_obs)[:args.ep_len]
 
     demo_traj_reward = np.load(f"expert_multi_traj/{args.env}_traj_reward.npy")
-    print("expert reward", demo_traj_reward)
+    print("expert reward", demo_traj_reward, "avg", demo_traj_reward.mean())
 
     # tensorboard
     file_writer = tf.summary.create_file_writer(args.logdir)
@@ -110,7 +110,6 @@ def train(
 
     # envs
     core_env = environment_fn(
-        auto_reset=False,
         action_repeat=action_repeat,
         batch_size=num_envs // local_devices_to_use // process_count,
         episode_length=episode_length)

@@ -109,7 +109,6 @@ def train(
 
     # envs
     core_env = environment_fn(
-        auto_reset=False,
         action_repeat=action_repeat,
         batch_size=num_envs // local_devices_to_use // process_count,
         episode_length=episode_length)
@@ -463,6 +462,10 @@ def train(
     # main training loop
     if args.ILD:
         for it in range(log_frequency + 1):
+            actor_lr = (1e-5 - args.lr) * float(it / log_frequency) + args.lr
+            optimizer = optax.adam(learning_rate=actor_lr)
+            print("actor_lr: ", actor_lr)
+
             logging.info('starting iteration %s %s', it, time.time() - xt)
             t = time.time()
 
@@ -545,7 +548,7 @@ if __name__ == '__main__':
 
     parser.add_argument('--env', default="ant")
     parser.add_argument('--ep_len', default=128, type=int)
-    parser.add_argument('--num_envs', default=360, type=int)
+    parser.add_argument('--num_envs', default=300, type=int)
     parser.add_argument('--lr', default=1e-3, type=float)
     parser.add_argument('--trunc_len', default=10, type=int)
     parser.add_argument('--max_it', default=5000, type=int)
