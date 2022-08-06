@@ -18,4 +18,6 @@ core/.DS_Store
 .flake8
 
 policy/brax_task/logs_bp/
+policy/brax_task/logs
+policy/brax_task/start_train*.sh
 *.v2

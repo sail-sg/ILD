@@ -40,6 +40,7 @@ from jax import custom_vjp
 
 logging.set_verbosity(logging.INFO)
 tf.config.experimental.set_visible_devices([], "GPU")
+best_reward = 0
 
 
 @flax.struct.dataclass
@@ -222,6 +223,7 @@ def train(
         return state, key, state_list
 
     def eval_policy(it, key_debug):
+        global best_reward
         if process_id == 0:
             eval_state, key_debug, state_list = run_eval(training_state.policy_params,
                                                          eval_first_state,
@@ -260,6 +262,16 @@ def train(
 
             tf.summary.scalar('eval_episode_reward', data=np.array(metrics['eval/episode_reward']),
                               step=it * args.num_envs * args.ep_len)
+
+            if np.array(metrics['eval/episode_reward']) > best_reward:
+                best_reward = np.array(metrics['eval/episode_reward'])
+                # save params in pickle file
+                print('Saving params with reward', best_reward)
+                params = jax.tree_map(lambda x: x[0], training_state.policy_params)
+                normalizer_params = jax.tree_map(lambda x: x[0], training_state.normalizer_params)
+                params_ = normalizer_params, params
+                with open(args.logdir + '/params.pkl', 'wb') as f:
+                    pickle.dump(params_, f)
 
     """
     Training functions
@@ -432,6 +444,7 @@ def train(
         print("using chamfer loss")
     minimize = jax.pmap(_minimize, axis_name='i')
     il_minimize = jax.pmap(il_minimize, axis_name='i')
+    best_reward = 0
 
     # prepare training
     sps = 0
@@ -493,10 +506,6 @@ def train(
     params = normalizer_params, params
     inference = make_inference_fn(core_env.observation_size, core_env.action_size,
                                   normalize_observations)
-
-    # save params in pickle file
-    with open(args.logdir + '/params.pkl', 'wb') as f:
-        pickle.dump(params, f)
 
     pmap.synchronize_hosts()
 

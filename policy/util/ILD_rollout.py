@@ -6,14 +6,14 @@ import jax
 import numpy as np
 from brax import envs
 from brax.io import html
-from brax.training import distribution, normalization, ppo
+from brax.training import distribution, normalization, ppo, sac
 from policy.brax_task.train_on_policy import make_direct_optimization_model
 import streamlit.components.v1 as components
 
 my_path = os.path.dirname(os.path.abspath(__file__))
 
 
-def rollout(env_name, num_steps=128, use_expert=False, seed = 1):
+def rollout(env_name, num_steps=128, use_expert=False, seed=1):
     env_fn = envs.create_fn(env_name)
     env = env_fn(batch_size=1, episode_length=num_steps * 2, auto_reset=False)
     env.step = jax.jit(env.step)
@@ -23,14 +23,16 @@ def rollout(env_name, num_steps=128, use_expert=False, seed = 1):
         parametric_action_distribution = distribution.NormalTanhDistribution(event_size=env.action_size)
         policy_model = make_direct_optimization_model(parametric_action_distribution, env.observation_size)
         policy_model.apply = jax.jit(policy_model.apply)
+        with open(f'{env_name}_params.pkl', 'rb') as f:
+            normalizer_params, params = pickle.load(f)
     else:
-        inference = ppo.make_inference_fn(env.observation_size, env.action_size, True)
+        if env_name == "humanoid":
+            inference = sac.make_inference_fn(env.observation_size, env.action_size, True)
+        else:
+            inference = ppo.make_inference_fn(env.observation_size, env.action_size, True)
         inference = jax.jit(inference)
         with open(f"{my_path}/../brax_task/expert_multi_traj/{env_name}_params.pickle", "rb") as f:
             decoded_params = pickle.load(f)
-
-    with open(f'{env_name}_params.pkl', 'rb') as f:
-        normalizer_params, params = pickle.load(f)
 
     _, _, obs_normalizer_apply_fn = (
         normalization.create_observation_normalizer(
@@ -43,7 +45,7 @@ def rollout(env_name, num_steps=128, use_expert=False, seed = 1):
     state = env.reset(jax.random.PRNGKey(seed))
 
     def do_one_step_eval(carry, unused_target_t):
-        state, params, normalizer_params, key = carry
+        state, key = carry
         key, key_sample = jax.random.split(key)
 
         if not use_expert:
@@ -54,10 +56,10 @@ def rollout(env_name, num_steps=128, use_expert=False, seed = 1):
             action = inference(decoded_params, state.obs, key)
 
         nstate = env.step(state, action)
-        return (nstate, params, normalizer_params, key), state
+        return (nstate, key), state
 
     _, state_list = jax.lax.scan(
-        do_one_step_eval, (state, params, normalizer_params, key), (),
+        do_one_step_eval, (state, key), (),
         length=num_steps)
 
     print(f'{env_name} reward: {state_list.reward.sum():.2f}')
@@ -80,4 +82,4 @@ def visualize(state_list, env_name, num_steps):
 
 
 if __name__ == '__main__':
-    rollout("humanoid", num_steps=128, use_expert=False, seed=6)
+    rollout("humanoid", num_steps=128, use_expert=False, seed=0)

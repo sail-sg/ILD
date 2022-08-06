@@ -11,6 +11,7 @@ from brax.training import ppo, sac
 my_path = os.path.dirname(os.path.abspath(__file__))
 logging.getLogger().setLevel(logging.INFO)
 
+
 def train_ppo(env_name, algo="ppo"):
     if algo == "ppo":
         inference, params, metrics = ppo.train(
@@ -31,30 +32,36 @@ def train_ppo(env_name, algo="ppo"):
     else:
         inference, params, metrics = sac.train(
             envs.create_fn(env_name),
-            num_timesteps=5000000,
-            episode_length=128,
-            num_envs=4,
-            learning_rate=3e-4,
+            num_timesteps=5242880 * 2,
+            episode_length=1000,
+            action_repeat=1,
+            num_envs=64,
+            learning_rate=0.0006,
             discounting=0.99,
-            batch_size=4,
-            log_frequency=10000,
+            batch_size=256,
+            log_frequency=131012,
             normalize_observations=True,
-            reward_scaling=0.1,
-            min_replay_size=10000,
-            max_replay_size=100000,
-            grad_updates_per_step=64,)
+            reward_scaling=10,
+            min_replay_size=8192,
+            max_replay_size=1048576,
+            grad_updates_per_step=0.125,
+            seed=2)
 
     # save paras into pickle
     with open(f"{my_path}/../brax_task/expert_multi_traj/{env_name}_params.pickle", "wb") as f:
         pickle.dump(params, f)
 
 
-def rollout(env_name, num_steps, num_envs):
+def rollout(env_name, num_steps, num_envs, algo="ppo"):
     env_fn = envs.create_fn(env_name)
     env = env_fn(batch_size=num_envs * 10, episode_length=num_steps * 2)
     env.step = jax.jit(env.step)
 
-    inference = ppo.make_inference_fn(env.observation_size, env.action_size, True)
+    algo = "sac" if env_name == "humanoid" else algo
+    if algo == "ppo":
+        inference = ppo.make_inference_fn(env.observation_size, env.action_size, True)
+    else:
+        inference = sac.make_inference_fn(env.observation_size, env.action_size, True)
     inference = jax.jit(inference)
     # load pickle file
     with open(f"{my_path}/../brax_task/expert_multi_traj/{env_name}_params.pickle", "rb") as f:
@@ -128,7 +135,7 @@ def print_demonstration_reward():
 
 if __name__ == '__main__':
     # print_demonstration_reward()
-    train_ppo("humanoid", algo="sac")
+    # train_ppo("humanoid", algo="sac")
     rollout("humanoid", num_steps=128, num_envs=16)
     # env_names = ["ant", "walker2d", "humanoid", "acrobot", "reacher", "hopper", "swimmer", "inverted_pendulum"]
     # for env_name in env_names:
